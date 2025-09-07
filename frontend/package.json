@@ -5,8 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "npm exec vite build",
-    "build:vercel": "npx vite build",
+    "build": "node build.mjs",
+    "build:manual": "tsc && npx rollup -c",
+    "build:vercel": "npm exec vite build",
     "lint": "eslint .",
     "preview": "vite preview"
   },
