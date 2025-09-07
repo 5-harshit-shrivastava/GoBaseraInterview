@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "npx vite build",
+    "build": "chmod +x build.sh && ./build.sh",
+    "build:vercel": "npx vite build",
     "lint": "eslint .",
     "preview": "vite preview"
   },
