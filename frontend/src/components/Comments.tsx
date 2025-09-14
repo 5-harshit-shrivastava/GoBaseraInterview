@@ -6,10 +6,12 @@ import './Comments.css';
 interface CommentsProps {
   announcementId: string;
   commentCount: number;
+  onCommentCountChange?: (announcementId: string, newCount: number) => void;
 }
 
-export default function Comments({ announcementId, commentCount }: CommentsProps) {
+export default function Comments({ announcementId, commentCount, onCommentCountChange }: CommentsProps) {
   const [comments, setComments] = useState<Comment[]>([]);
+  const [localCommentCount, setLocalCommentCount] = useState(commentCount);
   const [loading, setLoading] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -19,6 +21,11 @@ export default function Comments({ announcementId, commentCount }: CommentsProps
   const [error, setError] = useState('');
   const [nextCursor, setNextCursor] = useState<string | undefined>();
   const [deletingCommentId, setDeletingCommentId] = useState<string | null>(null);
+
+  // Update local state when props change (to handle external updates)
+  useEffect(() => {
+    setLocalCommentCount(commentCount);
+  }, [commentCount]);
 
   const fetchComments = async (cursor?: string) => {
     if (!showComments) return;
@@ -58,15 +65,29 @@ export default function Comments({ announcementId, commentCount }: CommentsProps
   const handleDeleteComment = async (commentId: string) => {
     if (deletingCommentId) return; // Prevent multiple deletes
 
+    // Find comment to delete before the try block
+    const commentToDelete = comments.find(c => c.id === commentId);
+    if (!commentToDelete) return;
+
     try {
       setDeletingCommentId(commentId);
       setError('');
 
-      await deleteComment(announcementId, commentId);
-
-      // Remove comment from local state
+      // Optimistic update - remove immediately
       setComments(prev => prev.filter(comment => comment.id !== commentId));
+      const newCount = localCommentCount - 1;
+      setLocalCommentCount(newCount);
+      onCommentCountChange?.(announcementId, newCount);
+
+      await deleteComment(announcementId, commentId);
     } catch (err) {
+      // Revert optimistic update on error
+      setComments(prev => [...prev, commentToDelete].sort((a, b) =>
+        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+      ));
+      setLocalCommentCount(localCommentCount);
+      onCommentCountChange?.(announcementId, localCommentCount);
+
       if (err instanceof ApiError) {
         setError(`Failed to delete comment: ${err.response.message}`);
       } else {
@@ -92,25 +113,57 @@ export default function Comments({ announcementId, commentCount }: CommentsProps
       return;
     }
 
+    // Create optimistic comment for immediate UI feedback
+    const optimisticComment: Comment = {
+      id: `temp-${Date.now()}`,
+      authorName: authorName.trim(),
+      text: commentText.trim(),
+      createdAt: new Date().toISOString(),
+      announcementId: announcementId
+    };
+
     try {
       setSubmitting(true);
       setError('');
 
-      const newComment: CreateCommentDto = {
+      // Add optimistic comment immediately
+      setComments(prev => [...prev, optimisticComment]);
+      const newCount = localCommentCount + 1;
+      setLocalCommentCount(newCount);
+      onCommentCountChange?.(announcementId, newCount);
+
+      // Reset form immediately for better UX
+      const formData = {
         authorName: authorName.trim(),
-        text: commentText.trim(),
+        text: commentText.trim()
       };
-
-      await postComment<Comment>(announcementId, newComment);
-
-      // Reset form
       setAuthorName('');
       setCommentText('');
       setShowAddForm(false);
 
-      // Refresh comments
-      await fetchComments();
+      const newComment: CreateCommentDto = {
+        authorName: formData.authorName,
+        text: formData.text,
+      };
+
+      const serverComment = await postComment<Comment>(announcementId, newComment);
+
+      // Replace optimistic comment with server response
+      setComments(prev =>
+        prev.map(comment =>
+          comment.id === optimisticComment.id ? serverComment : comment
+        )
+      );
     } catch (err) {
+      // Revert optimistic update on error
+      setComments(prev => prev.filter(comment => comment.id !== optimisticComment.id));
+      setLocalCommentCount(localCommentCount);
+      onCommentCountChange?.(announcementId, localCommentCount);
+
+      // Restore form data on error
+      setAuthorName(optimisticComment.authorName);
+      setCommentText(optimisticComment.text);
+      setShowAddForm(true);
       if (err instanceof ApiError) {
         // Handle specific API errors
         switch (err.response.code) {
@@ -153,7 +206,7 @@ export default function Comments({ announcementId, commentCount }: CommentsProps
           className="comments-toggle"
           onClick={() => setShowComments(!showComments)}
         >
-          💬 {commentCount} {commentCount === 1 ? 'Comment' : 'Comments'}
+          💬 {localCommentCount} {localCommentCount === 1 ? 'Comment' : 'Comments'}
           <span className="toggle-icon">{showComments ? '▲' : '▼'}</span>
         </button>
       </div>

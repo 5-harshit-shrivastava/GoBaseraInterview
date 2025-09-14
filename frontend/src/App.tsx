@@ -158,6 +158,16 @@ export default function App() {
     );
   };
 
+  const handleCommentCountChange = (announcementId: string, newCount: number) => {
+    setAnnouncements(prev =>
+      prev.map(announcement =>
+        announcement.id === announcementId
+          ? { ...announcement, commentCount: newCount }
+          : announcement
+      )
+    );
+  };
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', {
@@ -297,6 +307,7 @@ export default function App() {
                     <Comments
                       announcementId={announcement.id}
                       commentCount={announcement.commentCount}
+                      onCommentCountChange={handleCommentCountChange}
                     />
                   </div>
                 </div>
