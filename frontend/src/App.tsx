@@ -130,9 +130,32 @@ export default function App() {
     }
   };
 
-  const handleReactionChange = () => {
-    // Refresh announcements to get updated reaction counts
-    fetchAnnouncements();
+  const handleReactionChange = async (announcementId: string, newUserReaction: ReactionType | undefined, newReactionCounts: Record<string, number>) => {
+    // Update local state immediately for instant UI feedback
+    setUserReactions(prev => {
+      const updated = { ...prev };
+      if (newUserReaction) {
+        updated[announcementId] = newUserReaction;
+      } else {
+        delete updated[announcementId];
+      }
+      return updated;
+    });
+
+    setAnnouncements(prev =>
+      prev.map(announcement =>
+        announcement.id === announcementId
+          ? {
+              ...announcement,
+              reactions: {
+                up: newReactionCounts.up || 0,
+                down: newReactionCounts.down || 0,
+                heart: newReactionCounts.heart || 0
+              }
+            }
+          : announcement
+      )
+    );
   };
 
   const formatDate = (dateString: string) => {

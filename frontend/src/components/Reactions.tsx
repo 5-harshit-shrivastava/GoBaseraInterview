@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { postReaction, deleteReaction, ApiError } from '../lib/api';
 import type { ReactionBreakdown, ReactionType, Reaction, CreateReactionDto } from '../types/announcement';
 import './Reactions.css';
@@ -6,7 +6,7 @@ import './Reactions.css';
 interface ReactionsProps {
   announcementId: string;
   reactions: ReactionBreakdown;
-  onReactionChange: () => void;
+  onReactionChange: (announcementId: string, newUserReaction: ReactionType | undefined, newReactionCounts: Record<string, number>) => void;
   userReaction?: ReactionType; // Optional: the user's current reaction
 }
 
@@ -25,24 +25,51 @@ const REACTION_LABELS: Record<ReactionType, string> = {
 export default function Reactions({ announcementId, reactions, onReactionChange, userReaction }: ReactionsProps) {
   const [loading, setLoading] = useState<ReactionType | null>(null);
   const [error, setError] = useState('');
+  const [localReactions, setLocalReactions] = useState(reactions);
+  const [localUserReaction, setLocalUserReaction] = useState(userReaction);
+
+  // Update local state when props change (to handle external updates)
+  useEffect(() => {
+    setLocalReactions(reactions);
+  }, [reactions]);
+
+  useEffect(() => {
+    setLocalUserReaction(userReaction);
+  }, [userReaction]);
 
   const handleReaction = async (type: ReactionType) => {
     try {
       setLoading(type);
       setError('');
 
-      // Simple toggle logic: if already selected, toggle off; otherwise toggle on
-      if (userReaction === type) {
+      // Calculate optimistic updates
+      const newLocalReactions = { ...localReactions };
+      let newUserReaction: ReactionType | undefined;
+
+      // Remove previous reaction if exists
+      if (localUserReaction) {
+        newLocalReactions[localUserReaction] = Math.max(0, newLocalReactions[localUserReaction] - 1);
+      }
+
+      // Toggle logic: if already selected, toggle off; otherwise toggle on
+      if (localUserReaction === type) {
         // Toggle OFF - remove current reaction
+        newUserReaction = undefined;
         await deleteReaction(announcementId);
       } else {
         // Toggle ON or SWITCH - set new reaction
+        newUserReaction = type;
+        newLocalReactions[type] = newLocalReactions[type] + 1;
         const reactionData: CreateReactionDto = { type };
         await postReaction<Reaction>(announcementId, reactionData);
       }
 
-      // Notify parent to refresh data
-      onReactionChange();
+      // Update local state immediately for instant UI feedback
+      setLocalReactions(newLocalReactions);
+      setLocalUserReaction(newUserReaction);
+
+      // Notify parent with the new state
+      onReactionChange(announcementId, newUserReaction, newLocalReactions);
     } catch (err) {
       if (err instanceof ApiError) {
         switch (err.response.code) {
@@ -78,11 +105,11 @@ export default function Reactions({ announcementId, reactions, onReactionChange,
 
 
   const getTotalReactions = () => {
-    return reactions.up + reactions.down + reactions.heart;
+    return localReactions.up + localReactions.down + localReactions.heart;
   };
 
   const getReactionCount = (type: ReactionType) => {
-    return reactions[type];
+    return localReactions[type];
   };
 
   const isLoading = (type: ReactionType) => {
@@ -97,10 +124,10 @@ export default function Reactions({ announcementId, reactions, onReactionChange,
         {(Object.keys(REACTION_EMOJIS) as ReactionType[]).map((type) => (
           <button
             key={type}
-            className={`reaction-btn ${userReaction === type ? 'reaction-on' : 'reaction-off'}`}
+            className={`reaction-btn ${localUserReaction === type ? 'reaction-on' : 'reaction-off'}`}
             onClick={() => handleReaction(type)}
             disabled={isLoading(type)}
-            title={`${userReaction === type ? `Remove ${REACTION_LABELS[type]}` : `${REACTION_LABELS[type]} this announcement`}`}
+            title={`${localUserReaction === type ? `Remove ${REACTION_LABELS[type]}` : `${REACTION_LABELS[type]} this announcement`}`}
           >
             <span className="reaction-emoji">
               {REACTION_EMOJIS[type]}
@@ -113,19 +140,19 @@ export default function Reactions({ announcementId, reactions, onReactionChange,
       {getTotalReactions() > 0 && (
         <div className="reactions-summary">
           <div className="reaction-totals">
-            {reactions.up > 0 && (
+            {localReactions.up > 0 && (
               <span className="reaction-total">
-                👍 {reactions.up} {reactions.up === 1 ? 'Like' : 'Likes'}
+                👍 {localReactions.up} {localReactions.up === 1 ? 'Like' : 'Likes'}
               </span>
             )}
-            {reactions.down > 0 && (
+            {localReactions.down > 0 && (
               <span className="reaction-total">
-                👎 {reactions.down} {reactions.down === 1 ? 'Dislike' : 'Dislikes'}
+                👎 {localReactions.down} {localReactions.down === 1 ? 'Dislike' : 'Dislikes'}
               </span>
             )}
-            {reactions.heart > 0 && (
+            {localReactions.heart > 0 && (
               <span className="reaction-total">
-                ❤️ {reactions.heart} {reactions.heart === 1 ? 'Love' : 'Loves'}
+                ❤️ {localReactions.heart} {localReactions.heart === 1 ? 'Love' : 'Loves'}
               </span>
             )}
           </div>

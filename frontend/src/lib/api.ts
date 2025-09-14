@@ -40,6 +40,9 @@ async function fetchWithErrorHandling<T>(
     ...options,
     headers: {
       'Content-Type': 'application/json',
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0',
       ...options.headers,
     },
   });
@@ -67,7 +70,11 @@ async function fetchWithErrorHandling<T>(
 }
 
 export async function get<T>(path: string, options: RequestInit = {}): Promise<T> {
-  return fetchWithErrorHandling<T>(path, {
+  // Add timestamp to prevent caching
+  const separator = path.includes('?') ? '&' : '?';
+  const timestampedPath = `${path}${separator}_t=${Date.now()}`;
+  
+  return fetchWithErrorHandling<T>(timestampedPath, {
     method: 'GET',
     ...options,
   });
@@ -178,10 +185,15 @@ export async function getUserReaction<T>(
   options: RequestInit = {}
 ): Promise<T> {
   const userId = getUserId();
-  return get<T>(`/announcements/${announcementId}/user-reaction`, {
+  const timestamp = Date.now();
+  return fetchWithErrorHandling<T>(`/announcements/${announcementId}/user-reaction?_t=${timestamp}`, {
+    method: 'GET',
     ...options,
     headers: {
       'x-user-id': userId,
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0',
       ...options.headers,
     },
   });
