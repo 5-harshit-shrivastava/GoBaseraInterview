@@ -1,0 +1,7 @@
+export interface ErrorResponse {
+  code: string;
+  message: string;
+  details?: any;
+  timestamp?: string;
+  path?: string;
+}

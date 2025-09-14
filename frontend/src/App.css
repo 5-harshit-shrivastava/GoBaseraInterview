@@ -44,7 +44,7 @@ h2 {
   color: #1a1a1a;
 }
 
-/* Error message */
+/* Error messages */
 .error {
   background-color: #fee;
   color: #d63384;
@@ -52,6 +52,28 @@ h2 {
   border-radius: 8px;
   margin-bottom: 20px;
   border: 1px solid #f5c6cb;
+}
+
+.validation-errors {
+  background-color: #fee;
+  color: #d63384;
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  border: 1px solid #f5c6cb;
+}
+
+.validation-errors ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.validation-errors li {
+  margin-bottom: 4px;
+}
+
+.validation-errors li:last-child {
+  margin-bottom: 0;
 }
 
 /* Add Announcement Section */
@@ -110,6 +132,13 @@ h2 {
   min-height: 80px;
 }
 
+.char-count {
+  color: #6b7280;
+  font-size: 0.75rem;
+  margin-top: 0.25rem;
+  text-align: right;
+}
+
 .submit-btn {
   background-color: #3b82f6;
   color: white;
@@ -155,10 +184,6 @@ h2 {
   border-radius: 8px;
   padding: 20px;
   background: white;
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 16px;
   transition: border-color 0.2s;
 }
 
@@ -167,21 +192,31 @@ h2 {
 }
 
 .announcement-content {
-  flex: 1;
+  width: 100%;
+}
+
+.announcement-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 8px;
 }
 
 .announcement-title {
-  margin: 0 0 8px 0;
+  margin: 0;
   font-size: 18px;
   font-weight: 600;
   color: #1a1a1a;
+  flex: 1;
 }
 
 .announcement-meta {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 8px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
 }
 
 .status {
@@ -256,13 +291,22 @@ h2 {
     margin: 10px;
     padding: 20px;
   }
-  
-  .announcement-item {
+
+  .announcement-header {
     flex-direction: column;
     align-items: stretch;
+    gap: 8px;
   }
-  
+
   .announcement-actions {
     align-self: flex-end;
+  }
+
+  .announcement-meta {
+    gap: 8px;
+  }
+
+  .date {
+    font-size: 12px;
   }
 }
